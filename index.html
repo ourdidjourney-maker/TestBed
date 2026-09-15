@@ -1488,6 +1488,20 @@
   #poInList li.unread .grow1 { font-weight: bold; }
   .poWhen { font-size: 11px; opacity: .55; }
 
+  /* Chat */
+  #chBody { display: flex; flex-direction: column; min-height: 0; padding: 0; }
+  #chLog { flex: 1 1 auto; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
+  .chMsg { max-width: 78%; padding: 7px 11px; border-radius: 13px; font-size: 13.5px; line-height: 1.45;
+           word-break: break-word; }
+  .chMsg.them { align-self: flex-start; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); }
+  .chMsg.me { align-self: flex-end; background: linear-gradient(180deg, rgba(126,170,255,.9), rgba(86,128,240,.9)); color: #071024; }
+  .chMsg .chTime { display: block; font-size: 10.5px; opacity: .55; margin-top: 3px; }
+  .chNote { align-self: center; font-size: 11.5px; opacity: .55; }
+  #chBar { flex: 0 0 auto; display: flex; gap: 7px; padding: 9px 12px; border-top: 1px solid rgba(128,128,128,.28); }
+  #chIn { flex: 1; min-width: 0; }
+  #chWho { font-size: 11.5px; opacity: .75; }
+  #chWho.live { color: #7ef0b0; }
+
   /* Katy Mae — the garden */
   .kmHost { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 40; border-radius: inherit; transition: opacity 1.2s ease; }
   .kmHost.fading { opacity: 0; }
@@ -1703,6 +1717,19 @@
       <ul id="poLog" class="clist"></ul>
     </div>
 
+  </div>
+</div>
+<div class="face" data-face="chat" id="chatFace" tabindex="-1">
+  <div class="bar"><span class="seg"></span><span class="sep"></span>
+    <span id="chWho">Not connected</span>
+    <button id="chClear">Clear</button>
+  </div>
+  <div class="body" id="chBody">
+    <div id="chLog"></div>
+    <div id="chBar">
+      <input type="text" id="chIn" placeholder="Type and press Enter" autocomplete="off">
+      <button id="chSend" class="poPrimary">Send</button>
+    </div>
   </div>
 </div>
     </div>
@@ -3541,7 +3568,7 @@ var Layout = (function () {
               ['sticky', 'Sticky notes'], ['clip', 'Clipboard history'], ['units', 'Unit converter'],
               ['pass', 'Password generator'], ['chars', 'Character map'],
               ['vault', 'Password vault'], ['trash', 'Trash bin'],
-              ['marks', 'Bookmarks'], ['slides', 'Slides'], ['checkers', 'Checkers'], ['help', 'Handbook'], ['gif', 'GIF maker'], ['img', 'Image editor'], ['snd', 'Sound editor'], ['post', 'Post']];
+              ['marks', 'Bookmarks'], ['slides', 'Slides'], ['checkers', 'Checkers'], ['help', 'Handbook'], ['gif', 'GIF maker'], ['img', 'Image editor'], ['snd', 'Sound editor'], ['post', 'Post'], ['chat', 'Chat']];
   var HOME = {};   // where each app started out
   document.querySelectorAll('.face').forEach(function (f) {
     var p = f.closest('.panel');
@@ -3587,7 +3614,7 @@ var Layout = (function () {
                   calendar: 'Calendar', calc: 'Calc', clock: 'Clock', time: 'Time', word: 'Word', sheet: 'Sheet',
                   code: 'Code', notes: 'Notes', media: 'Media', rec: 'Recorder',
                   sticky: 'Sticky', clip: 'Clipboard', units: 'Units', pass: 'Password', chars: 'Chars',
-                  vault: 'Vault', trash: 'Trash', marks: 'Bookmarks', slides: 'Slides', checkers: 'Checkers', help: 'Handbook', gif: 'GIF maker', img: 'Image editor', snd: 'Sound editor', post: 'Post' };
+                  vault: 'Vault', trash: 'Trash', marks: 'Bookmarks', slides: 'Slides', checkers: 'Checkers', help: 'Handbook', gif: 'GIF maker', img: 'Image editor', snd: 'Sound editor', post: 'Post', chat: 'Chat' };
     document.querySelectorAll('.card').forEach(function (card) {
       var names = [].filter.call(card.querySelectorAll('.face'), function (f) { return !f.classList.contains('faceOff'); })
                     .map(function (f) { return f.dataset.face; });
@@ -8864,7 +8891,8 @@ var Garden = (function () {
     gif: function () { return false; },
     img: function () { return false; },
     snd: function () { return false; },
-    post: function () { var v = store.get('ws.post', null); return !!(v && ((v.inbox || []).length || (v.outbox || []).length)); }
+    post: function () { var v = store.get('ws.post', null); return !!(v && ((v.inbox || []).length || (v.outbox || []).length)); },
+    chat: function () { return (store.get('ws.chat', []) || []).length > 0; }
   };
   function update() {
     Object.keys(CHECK).forEach(function (k) {
@@ -8904,7 +8932,8 @@ var Garden = (function () {
     { k: 'gif', name: 'GIF maker', panel: 'paint', note: 'Built in' },
     { k: 'img', name: 'Image editor', panel: 'paint', note: 'Built in' },
     { k: 'snd', name: 'Sound editor', panel: 'media', note: 'Built in' },
-    { k: 'post', name: 'Post', panel: 'browser', key: 'ws.post' }
+    { k: 'post', name: 'Post', panel: 'browser', key: 'ws.post' },
+    { k: 'chat', name: 'Chat', panel: 'browser', key: 'ws.chat' }
   ];
   function bytes(n) { if (n < 1024) return n + ' B'; if (n < 1048576) return (n / 1024).toFixed(1) + ' KB'; if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB'; return (n / 1073741824).toFixed(2) + ' GB'; }
   function kvSize(key) { var v = store.get(key); return v === undefined ? 0 : new Blob([JSON.stringify(v)]).size; }
@@ -12252,9 +12281,19 @@ var soundEditorAPI = {};
   }
   function wire(c) {
     chan = c;
-    c.onopen = function () { setState('Link: open', true); logLine('The link is open.'); drain(); };
-    c.onclose = function () { setState('Link: closed'); logLine('The link closed.'); };
-    c.onmessage = function (e) { takeIn(e.data); };
+    c.onopen = function () {
+      setState('Link: open', true); logLine('The link is open.'); drain();
+      Sys.link.onState.forEach(function (f) { f(true); });
+    };
+    c.onclose = function () {
+      setState('Link: closed'); logLine('The link closed.');
+      Sys.link.onState.forEach(function (f) { f(false); });
+    };
+    c.onmessage = function (e) {
+      var d = String(e.data || '');
+      if (d.indexOf('WSCHAT1|') === 0) { if (Sys.chatIn) Sys.chatIn(d.slice(8)); return; }
+      takeIn(d);
+    };
   }
   function pack(sdp) { return btoa(JSON.stringify(sdp)); }
   function unpackSdp(code) { return JSON.parse(atob(String(code).replace(/\s+/g, ''))); }
@@ -12319,6 +12358,15 @@ var soundEditorAPI = {};
   };
 
   // anything waiting goes out the moment a link opens
+  // Chat rides the same link: one pipe, two kinds of traffic.
+  Sys.link = {
+    send: function (text) {
+      if (!chan || chan.readyState !== 'open') return false;
+      try { chan.send('WSCHAT1|' + text); return true; } catch (e) { return false; }
+    },
+    open: function () { return !!(chan && chan.readyState === 'open'); },
+    onState: []
+  };
   function drain() {
     if (!chan || chan.readyState !== 'open') return;
     var waiting = st.outbox.filter(function (m) { return !m.delivered && m.blob; });
@@ -12343,6 +12391,85 @@ var soundEditorAPI = {};
 
   ready().then(function () { render(); });
   show('write');
+})();
+
+/* ================= Chat =================
+   Live conversation over the same direct link Post uses. Nothing is stored
+   anywhere but these two machines, and nothing passes through anyone else. */
+(function () {
+  var KEY = 'ws.chat';
+  var log = store.get(KEY, []) || [];
+  function save() { store.set(KEY, log.slice(-300)); }
+
+  function when(t) { return new Date(t).toLocaleTimeString(); }
+
+  function draw() {
+    var box = $('chLog');
+    box.innerHTML = '';
+    if (!log.length) {
+      var n = document.createElement('div');
+      n.className = 'chNote';
+      n.textContent = 'Nothing said yet. Open a link in Post, then type here.';
+      box.appendChild(n);
+    }
+    log.forEach(function (m) {
+      var d = document.createElement('div');
+      d.className = 'chMsg ' + (m.me ? 'me' : 'them');
+      d.textContent = m.t;
+      var s = document.createElement('span');
+      s.className = 'chTime';
+      s.textContent = when(m.at);
+      d.appendChild(s);
+      box.appendChild(d);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function note(text) {
+    log.push({ note: 1, t: text, at: Date.now() });
+  }
+
+  function state(on) {
+    $('chWho').textContent = on ? 'Connected' : 'Not connected';
+    $('chWho').classList.toggle('live', !!on);
+    $('chIn').disabled = !on;
+    $('chSend').disabled = !on;
+  }
+
+  function send() {
+    var t = $('chIn').value.trim();
+    if (!t) return;
+    if (!Sys.link || !Sys.link.open()) {
+      Sys.toast('No link open. Start one in Post.', { ms: 3500 });
+      return;
+    }
+    if (Sys.link.send(t)) {
+      log.push({ me: 1, t: t, at: Date.now() });
+      save(); draw();
+      $('chIn').value = '';
+    }
+  }
+  $('chSend').onclick = send;
+  $('chIn').addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+  $('chClear').onclick = function () {
+    var old = log.slice();
+    log = []; save(); draw();
+    Sys.toast('Cleared.', { ms: 3000, actions: [{ label: 'Undo', fn: function () { log = old; save(); draw(); } }] });
+  };
+
+  // the link hands incoming chat here
+  Sys.chatIn = function (text) {
+    log.push({ me: 0, t: text, at: Date.now() });
+    save(); draw();
+    if (!$('chatFace').classList.contains('front')) {
+      Sys.toast('Message: ' + text.slice(0, 60), { ms: 5000 });
+    }
+  };
+
+  // and tells us when it opens or closes
+  if (Sys.link && Sys.link.onState) Sys.link.onState.push(state);
+  state(Sys.link && Sys.link.open());
+  draw();
 })();
 
 /* ================= Status bar ================= */
