@@ -1702,15 +1702,16 @@
     <div class="poPane" id="poPaneLink" hidden>
       <p class="poHint">A direct link between the two machines. Nothing in the middle, nobody to ask.</p>
       <div class="poRow">
-        <button id="poOffer" class="poPrimary">Start a link</button>
-        <button id="poAccept">Join a link</button>
+        <select id="poPeer"></select>
+        <button id="poGo" class="poPrimary">Connect</button>
         <button id="poDrop2">Hang up</button>
+        <span class="poHint" id="poStep"></span>
       </div>
       <div class="poRow" id="poCodeRow" hidden>
         <textarea id="poCode" placeholder="The code appears here"></textarea>
       </div>
       <div class="poRow" id="poCodeBtns" hidden>
-        <button id="poCodeCopy">Copy the code</button>
+        <button id="poCodeCopy">Copy my code</button>
         <button id="poCodeUse" class="poPrimary">Use their code</button>
         <span class="poHint" id="poCodeHint"></span>
       </div>
@@ -12132,6 +12133,23 @@ var soundEditorAPI = {};
       to.appendChild(o2);
     }
     $('poMe').value = address();
+    var peer = $('poPeer');
+    if (peer) {
+      var keep = peer.value;
+      peer.innerHTML = '';
+      st.who.forEach(function (w) {
+        var o = document.createElement('option');
+        o.value = w.addr;
+        o.textContent = w.name + (w.code ? ' · known' : '');
+        peer.appendChild(o);
+      });
+      if (!st.who.length) {
+        var o3 = document.createElement('option');
+        o3.value = ''; o3.textContent = 'Anyone (add contacts to remember them)';
+        peer.appendChild(o3);
+      }
+      if (keep) peer.value = keep;
+    }
 
     list('poWhoList', st.who, function (w, li) {
       li.innerHTML = '<span class="grow1"></span><span class="poWhen"></span><button class="x">×</button>';
@@ -12295,10 +12313,29 @@ var soundEditorAPI = {};
       takeIn(d);
     };
   }
+  // What we learned about reaching someone, kept per contact so the next
+  // connection is one button rather than a procedure.
+  function remembered(addr) {
+    var w = st.who.filter(function (x) { return x.addr === addr; })[0];
+    return w && w.code;
+  }
+  function remember(addr, code) {
+    if (!addr || !code) return;
+    var w = st.who.filter(function (x) { return x.addr === addr; })[0];
+    if (!w) return;
+    w.code = code;
+    w.lastSeen = Date.now();
+    save();
+    render();
+  }
   function pack(sdp) { return btoa(JSON.stringify(sdp)); }
   function unpackSdp(code) { return JSON.parse(atob(String(code).replace(/\s+/g, ''))); }
 
-  $('poOffer').onclick = function () {
+  // One button that knows what stage you are at, so nobody has to remember
+  // who offered and who answered.
+  function step(t) { $('poStep').textContent = t; }
+
+  function makeOffer() {
     newPeer();
     wire(pc.createDataChannel('post'));
     pc.createOffer().then(function (o) { return pc.setLocalDescription(o); }).then(function () {
@@ -12311,15 +12348,25 @@ var soundEditorAPI = {};
     }).then(function () {
       $('poCode').value = pack(pc.localDescription);
       $('poCodeRow').hidden = false; $('poCodeBtns').hidden = false;
-      $('poCodeHint').textContent = 'Send them this code, then paste theirs back and press Use their code.';
+      $('poCodeHint').textContent = 'Send them this code. When they send one back, paste it here and press Use their code.';
+      step('Waiting for their code');
       logLine('Code ready. Send it to them.');
     });
-  };
-  $('poAccept').onclick = function () {
+  }
+
+  $('poGo').onclick = function () {
+    var addr = $('poPeer').value;
+    var saved = addr && remembered(addr);
     $('poCodeRow').hidden = false; $('poCodeBtns').hidden = false;
-    $('poCode').value = '';
-    $('poCode').placeholder = 'Paste their code here, then press Use their code';
-    $('poCodeHint').textContent = 'Paste the code they sent you, then press Use their code.';
+    if (saved) {
+      // we have done this before: reuse what we learned and skip the dance
+      $('poCode').value = saved;
+      logLine('Using the code saved for ' + who(addr) + '.');
+      $('poCodeUse').click();
+      return;
+    }
+    if ($('poCode').value.trim()) { $('poCodeUse').click(); return; }   // they went first
+    makeOffer();
   };
   $('poCodeUse').onclick = function () {
     var code;
@@ -12338,11 +12385,16 @@ var soundEditorAPI = {};
         }).then(function () {
           $('poCode').value = pack(pc.localDescription);
           $('poCodeHint').textContent = 'Send this answer back to them. That is the last step.';
+          step('Answer ready — send it back');
           logLine('Answer ready. Send it back.');
         });
     } else {
-      if (!pc) { Sys.toast('Start a link first, then use their answer.', { ms: 3500 }); return; }
-      pc.setRemoteDescription(code).then(function () { logLine('Answer accepted. Connecting.'); });
+      if (!pc) { Sys.toast('Press Connect first, then use their answer.', { ms: 3500 }); return; }
+      pc.setRemoteDescription(code).then(function () {
+        logLine('Answer accepted. Connecting.');
+        step('Connecting');
+        remember($('poPeer').value, $('poCode').value);
+      });
     }
   };
   $('poCodeCopy').onclick = function () {
