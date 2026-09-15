@@ -4155,6 +4155,18 @@ var Sys = (function () {
 /* ================= Browser ================= */
 (function () {
   var frame = $('bFrame'), url = $('bUrl'), hint = $('bHint'), back = $('bBack'), fwd = $('bFwd');
+
+  frame.addEventListener('load', function () {
+    if (!frame.getAttribute('src')) return;
+    var typed = url.value.trim();
+    // the address bar still holds what was typed; anything after that is unknown to us
+    if (frame._shown && frame._shown !== typed) {
+      Net.only('The browser, showing ', 'a page you followed from ' + frame._shown);
+    } else {
+      frame._shown = typed;
+      Net.only('The browser, showing ', typed);
+    }
+  });
   var hist = [], idx = -1, KEY = 'ws.web';   // our own history: cross-origin frames don't expose theirs
 
   function normalize(s) {
@@ -7113,10 +7125,8 @@ var Sys = (function () {
       if (i >= PROXIES.length) return Promise.reject(new Error('unreachable'));
       var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 12000);
       live.push(ctl);
-      Net.open('The news ticker');
       function done() {
         clearTimeout(timer);
-        Net.close('The news ticker');
         var k = live.indexOf(ctl);
         if (k >= 0) live.splice(k, 1);
       }
@@ -7265,11 +7275,12 @@ var Sys = (function () {
     feedTimer = null;
     if (tickerOn) {
       if (!booting) Net.ask('feeds', 'The news ticker is about to fetch your feeds from the internet.', function () {});
+      Net.only('The news ticker — ', 'on, fetching every ten minutes');
       reconnect();
       feedTimer = setInterval(renderRows, 10 * 60 * 1000);
       renderRows();
     } else {
-      Net.close('The news ticker');
+      Net.only('The news ticker', null);
       severAll();                  // anything open right now is cut off mid-flight
       cache = {};                  // and nothing fetched is kept in memory
       rows.innerHTML = '';
