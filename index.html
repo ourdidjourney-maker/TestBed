@@ -1472,6 +1472,26 @@
 
 
   /* Post */
+  #llHead { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 9px 11px;
+            border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(255,255,255,.04);
+            margin: 4px 0 10px; }
+  .llLamp { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+  .llLamp i { width: 11px; height: 11px; border-radius: 50%; background: #6b7280;
+              box-shadow: 0 0 0 3px rgba(107,114,128,.18); transition: background .4s ease, box-shadow .4s ease; }
+  .llLamp.on i { background: #5af0af; box-shadow: 0 0 10px 2px rgba(90,240,175,.55), 0 0 0 3px rgba(90,240,175,.18);
+                 animation: llBreathe 2.6s ease-in-out infinite; }
+  .llLamp.busy i { background: #ffc46b; box-shadow: 0 0 0 3px rgba(255,196,107,.2); }
+  @keyframes llBreathe { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
+  .llTraffic { display: flex; align-items: center; gap: 6px; font-size: 11.5px; opacity: .78; }
+  .llTraffic b { font: 11.5px ui-monospace, Consolas, monospace; opacity: 1; }
+  .llDot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.18);
+           transition: background .12s linear, box-shadow .12s linear; }
+  .llDot.flash { background: #7eaaff; box-shadow: 0 0 8px 2px rgba(126,170,255,.7); }
+  .llDot.rx.flash { background: #5af0af; box-shadow: 0 0 8px 2px rgba(90,240,175,.7); }
+  #poLog li { cursor: default; }
+  #poLog li.sent .grow1::before { content: '→ '; opacity: .6; }
+  #poLog li.recv .grow1::before { content: '← '; opacity: .6; }
+
   .seg button[data-flip="post"].waiting { animation: chSoft 2.4s ease-in-out infinite; }
   body.glass .seg button[data-flip="post"].waiting { animation: chSoftG 2.4s ease-in-out infinite; }
 
@@ -1741,6 +1761,15 @@
     </div>
 
     <div class="poPane" id="poPaneLink" hidden>
+      <div id="llHead">
+        <div class="llLamp" id="llLamp"><i></i><span id="llLampT">Closed</span></div>
+        <div class="llTraffic"><i class="llDot" id="llTx"></i><span>sent</span><b id="llSent">0</b>
+          <i class="llDot" id="llRx"></i><span>received</span><b id="llRecv">0</b></div>
+        <div class="llTraffic"><span>carried</span><b id="llBytes">0 B</b><span>since</span><b id="llSince">—</b></div>
+        <div class="llTraffic"><span>peer</span><b id="llPeer">—</b></div>
+        <div class="llTraffic"><span>ice</span><b id="llIce">—</b><span>gather</span><b id="llGather">—</b><span>signal</span><b id="llSig">—</b></div>
+        <div class="llTraffic"><span>candidates</span><b id="llCand">0 host · 0 srflx</b></div>
+      </div>
       <p class="poHint">A direct link between the two machines. Nothing in the middle, nobody to ask.</p>
       <div class="poRow">
         <select id="poPeer"></select>
@@ -1756,6 +1785,7 @@
         <button id="poCodeUse" class="poPrimary">Use their code</button>
         <span class="poHint" id="poCodeHint"></span>
       </div>
+      <div class="poRow"><span class="poHint" id="llCount"></span><button id="llClear">Clear the history</button></div>
       <ul id="poLog" class="clist"></ul>
     </div>
 
@@ -12371,12 +12401,112 @@ var soundEditorAPI = {};
   // WebRTC with no company doing the introductions: the two machines swap one
   // code by hand and then talk directly.
   var pc = null, chan = null;
+  // The history is kept, so you can see what this link has carried.
+  st.link = st.link || { hist: [], sent: 0, recv: 0, bytes: 0, since: 0 };
+  function blen(t) { return new Blob([String(t)]).size; }
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  function stampFull(t) {
+    var d = new Date(t);
+    return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) +
+           ' ' + two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds());
+  }
+  function human(n) { return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB'; }
+
+  function flash(which) {
+    var d = $(which === 'tx' ? 'llTx' : 'llRx');
+    if (!d) return;
+    d.classList.add('flash');
+    setTimeout(function () { d.classList.remove('flash'); }, 170);
+  }
+
+  // A record of one thing crossing the link, with enough detail to inspect it.
+  function record(dir, kind, label, blob) {
+    var n = blob ? blen(blob) : 0;
+    var item = { dir: dir, kind: kind, label: label, at: Date.now(), n: n };
+    if (blob) {
+      var raw = String(blob).replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+      item.head = raw.slice(0, 96);
+      try {
+        var pkt = JSON.parse(atob(raw));
+        item.crypt = { v: pkt.v, from: pkt.from, iv: pkt.iv, sig: String(pkt.sig).slice(0, 44), ct: String(pkt.ct).length };
+      } catch (e) {}
+    }
+    st.link.hist.push(item);
+    if (st.link.hist.length > 300) st.link.hist = st.link.hist.slice(-300);
+    if (dir === 'sent') { st.link.sent++; flash('tx'); } else { st.link.recv++; flash('rx'); }
+    st.link.bytes += n;
+    if (!st.link.since) st.link.since = Date.now();
+    save();
+    drawLog();
+    meter();
+  }
+
+  function meter() {
+    var L = st.link;
+    $('llSent').textContent = L.sent;
+    $('llRecv').textContent = L.recv;
+    $('llBytes').textContent = human(L.bytes);
+    $('llSince').textContent = L.since ? stampFull(L.since).slice(11) : '—';
+    var known = st.who.filter(function (w) { return w.code; })[0];
+    $('llPeer').textContent = known ? known.name : (st.who[0] ? st.who[0].name : '—');
+    $('llCount').textContent = L.hist.length + ' entries';
+  }
+
+  function lamp(kind, text) {
+    var el = $('llLamp');
+    el.classList.toggle('on', kind === 'on');
+    el.classList.toggle('busy', kind === 'busy');
+    $('llLampT').textContent = text;
+  }
+
+  function drawLog() {
+    var ul = $('poLog');
+    ul.innerHTML = '';
+    var h = st.link.hist;
+    if (!h.length) {
+      var e = document.createElement('li');
+      e.className = 'empty';
+      e.textContent = 'Nothing has crossed this link yet.';
+      ul.appendChild(e);
+      return;
+    }
+    h.slice().reverse().forEach(function (it) {
+      var li = document.createElement('li');
+      li.className = it.dir === 'sent' ? 'sent' : (it.dir === 'recv' ? 'recv' : '');
+      li.innerHTML = '<span class="grow1"></span><span class="poWhen"></span>';
+      li.children[0].textContent = it.label;
+      li.children[1].textContent = stampFull(it.at).slice(11) + (it.n ? '  ·  ' + human(it.n) : '');
+      // hover shows the message and how it was sealed
+      var tip = [];
+      tip.push(it.kind + ' · ' + (it.dir === 'sent' ? 'sent' : it.dir === 'recv' ? 'received' : 'event'));
+      tip.push(stampFull(it.at));
+      if (it.n) tip.push('size: ' + human(it.n));
+      if (it.crypt) {
+        tip.push('');
+        tip.push('SEALED WITH');
+        tip.push('  format      WS' + (it.crypt.v || 1) + '  ECDH P-256 + AES-GCM 256');
+        tip.push('  signature   ECDSA P-256 over the ciphertext');
+        tip.push('  iv          ' + it.crypt.iv);
+        tip.push('  sig         ' + it.crypt.sig + '…');
+        tip.push('  ciphertext  ' + it.crypt.ct + ' chars');
+        tip.push('  from        ' + String(it.crypt.from).slice(0, 40) + '…');
+      }
+      if (it.head) { tip.push(''); tip.push('ON THE WIRE'); tip.push('  ' + it.head + '…'); }
+      li.dataset.full = tip.join('\n');
+      ul.appendChild(li);
+    });
+  }
+
+  $('llClear').onclick = function () {
+    var old = st.link;
+    st.link = { hist: [], sent: 0, recv: 0, bytes: 0, since: 0 };
+    save(); drawLog(); meter();
+    Sys.toast('Link history cleared.', { ms: 4000, actions: [{ label: 'Undo', fn: function () { st.link = old; save(); drawLog(); meter(); } }] });
+  };
+
   function logLine(t) {
-    var ul = $('poLog'), li = document.createElement('li');
-    li.innerHTML = '<span class="grow1"></span><span class="poWhen"></span>';
-    li.children[0].textContent = t;
-    li.children[1].textContent = new Date().toLocaleTimeString();
-    ul.insertBefore(li, ul.firstChild);
+    st.link.hist.push({ dir: 'note', kind: 'Link', label: t, at: Date.now(), n: 0 });
+    save(); drawLog(); meter();
   }
   function setState(t, live) {
     $('poState').textContent = t;
@@ -12385,8 +12515,36 @@ var soundEditorAPI = {};
   function newPeer() {
     if (pc) { try { pc.close(); } catch (e) {} }
     pc = new RTCPeerConnection({ iceServers: [] });    // no helper servers: same network only
+    function dbg() {
+      if (!pc) return;
+      $('llIce').textContent = pc.iceConnectionState;
+      $('llGather').textContent = pc.iceGatheringState;
+      $('llSig').textContent = pc.signalingState;
+    }
+    var cands = { host: 0, srflx: 0, relay: 0 };
+    pc.onicecandidate = function (e) {
+      if (!e.candidate) { logLine('Candidate gathering finished.'); dbg(); return; }
+      var t = (e.candidate.candidate.match(/ typ (\w+)/) || [])[1] || 'other';
+      cands[t] = (cands[t] || 0) + 1;
+      $('llCand').textContent = (cands.host || 0) + ' host · ' + (cands.srflx || 0) + ' srflx' +
+                                (cands.relay ? ' · ' + cands.relay + ' relay' : '');
+    };
+    pc.oniceconnectionstatechange = function () {
+      dbg();
+      logLine('ICE ' + pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') logLine('ICE failed: no route found between the two machines.');
+    };
+    pc.onicegatheringstatechange = dbg;
+    pc.onsignalingstatechange = dbg;
+    pc.onicecandidateerror = function (e) {
+      logLine('Candidate error ' + (e.errorCode || '') + ' ' + (e.errorText || ''));
+    };
     pc.onconnectionstatechange = function () {
+      dbg();
       setState('Link: ' + pc.connectionState, pc.connectionState === 'connected');
+      lamp(pc.connectionState === 'connected' ? 'on' :
+           pc.connectionState === 'connecting' ? 'busy' : 'off',
+           pc.connectionState.charAt(0).toUpperCase() + pc.connectionState.slice(1));
       logLine('Link ' + pc.connectionState);
       if (pc.connectionState === 'connected') drain();
     };
@@ -12395,16 +12553,24 @@ var soundEditorAPI = {};
   function wire(c) {
     chan = c;
     c.onopen = function () {
-      setState('Link: open', true); logLine('The link is open.'); drain();
+      setState('Link: open', true); lamp('on', 'Open'); logLine('The link is open.'); drain();
       Sys.link.onState.forEach(function (f) { f(true); });
     };
     c.onclose = function () {
-      setState('Link: closed'); logLine('The link closed.');
+      setState('Link: closed'); lamp('off', 'Closed'); logLine('The link closed.');
       Sys.link.onState.forEach(function (f) { f(false); });
     };
     c.onmessage = function (e) {
       var d = String(e.data || '');
-      if (d.indexOf('WSCHAT1|') === 0) { if (Sys.chatIn) Sys.chatIn(d.slice(8)); return; }
+      if (d.indexOf('WSCHAT1|') === 0) {
+        var t = d.slice(8), shown = t;
+        try { shown = JSON.parse(t).t; } catch (x) {}
+        record('recv', 'Chat', String(shown).slice(0, 60), null);
+        st.link.bytes += blen(t); save(); meter();
+        if (Sys.chatIn) Sys.chatIn(t);
+        return;
+      }
+      record('recv', 'Message', 'A sealed message arrived', d);
       takeIn(d);
     };
   }
@@ -12509,7 +12675,14 @@ var soundEditorAPI = {};
   Sys.link = {
     send: function (text) {
       if (!chan || chan.readyState !== 'open') return false;
-      try { chan.send('WSCHAT1|' + text); return true; } catch (e) { return false; }
+      try {
+        chan.send('WSCHAT1|' + text);
+        var shown = text;
+        try { shown = JSON.parse(text).t; } catch (x) {}
+        record('sent', 'Chat', String(shown).slice(0, 60), null);
+        st.link.bytes += blen(text); save(); meter();
+        return true;
+      } catch (e) { return false; }
     },
     open: function () { return !!(chan && chan.readyState === 'open'); },
     onState: []
@@ -12518,7 +12691,10 @@ var soundEditorAPI = {};
     if (!chan || chan.readyState !== 'open') return;
     var waiting = st.outbox.filter(function (m) { return !m.delivered && m.blob; });
     waiting.forEach(function (m) {
-      try { chan.send(m.blob); m.delivered = Date.now(); } catch (e) {}
+      try {
+        chan.send(m.blob); m.delivered = Date.now();
+        record('sent', 'Message', (m.s || '(no subject)') + ' → ' + who(m.to), m.blob);
+      } catch (e) {}
     });
     if (waiting.length) { save(); render(); logLine('Sent ' + waiting.length + ' waiting message(s).'); }
   }
@@ -12536,7 +12712,7 @@ var soundEditorAPI = {};
 
   Trash.handler('Message', function (m) { st.inbox.push(m); save(); render(); });
 
-  ready().then(function () { render(); });
+  ready().then(function () { render(); drawLog(); meter(); lamp('off', 'Closed'); });
   show('write');
 })();
 
