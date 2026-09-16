@@ -1371,7 +1371,7 @@
   .seRow input[type=range] { flex: 1; min-width: 0; }
   .seRow select { flex: 1; min-width: 0; }
   .seRow output { flex: none; width: 46px; text-align: right; font: 11px ui-monospace, Consolas, monospace; }
-  #seSide button[aria-pressed=true], .sePrimary { background: linear-gradient(180deg, rgba(126,170,255,.95), rgba(86,128,240,.95)); color: #071024; }
+  body.glass #seSide button[aria-pressed=true] { background: linear-gradient(180deg, rgba(126,170,255,.95), rgba(86,128,240,.95)); color: #071024; }
   #seTimes { flex: 0 0 auto; display: flex; gap: 14px; flex-wrap: wrap; padding: 6px 10px; font-size: 12px;
              opacity: .8; border-top: 1px solid rgba(128,128,128,.28); }
   #seTimes b { font-family: ui-monospace, Consolas, monospace; }
@@ -1507,7 +1507,20 @@
   .poHint { font-size: 12px; opacity: .62; }
   #poState { font-size: 11.5px; opacity: .8; margin-left: 4px; }
   #poState.live { color: #7ef0b0; }
-  .poPrimary { background: linear-gradient(180deg, rgba(126,170,255,.95), rgba(86,128,240,.95)); color: #071024; }
+  body.glass .poPrimary, body.glass .sePrimary {
+    background: linear-gradient(180deg, rgba(126,170,255,.95), rgba(86,128,240,.95));
+    color: #071024; border-color: rgba(190,215,255,.5);
+  }
+  /* the pane tabs read like every other switcher in the workspace */
+  body.glass #postFace .bar button.on, body.glass #chatFace .bar button.on {
+    background: linear-gradient(180deg, rgba(126,170,255,.95), rgba(86,128,240,.95));
+    color: #071024; border-color: rgba(190,215,255,.5);
+  }
+  #postFace .bar button.on, #chatFace .bar button.on { font-weight: bold; }
+  /* the chat formatting bar matches the word processor's toolbar */
+  body.glass #chFmt button[aria-pressed=true] {
+    background: linear-gradient(180deg, rgba(126,170,255,.95), rgba(86,128,240,.95)); color: #071024;
+  }
   #poInList li.unread .grow1 { font-weight: bold; }
   .poWhen { font-size: 11px; opacity: .55; }
 
@@ -1526,7 +1539,27 @@
 
   #chBody { display: flex; flex-direction: column; min-height: 0; padding: 0; }
   #chMain { flex: 1 1 auto; display: flex; min-height: 0; }
-  #chLog { flex: 1 1 auto; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  #chLog { flex: 1 1 auto; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+           align-items: stretch; }
+  #chLog > * { max-width: 560px; }                 /* a readable column, not the whole wall */
+  #chLog .chMsg.me { margin-left: auto; }
+  #chDetail { flex: 0 0 auto; width: 240px; overflow-y: auto; padding: 12px 13px;
+              border-left: 1px solid rgba(128,128,128,.28); }
+  #chDetail h4 { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; opacity: .5; margin: 0 0 8px; }
+  #chDetailBody { font-size: 11.5px; line-height: 1.6; }
+  #chDetailBody.chEmpty { opacity: .45; }
+  #chDetail .chK { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px;
+                   padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  #chDetail .chK span { opacity: .6; }
+  #chDetail .chK b { font: 11px ui-monospace, Consolas, monospace; text-align: right; }
+  .chWire { display: flex; align-items: center; gap: 6px; font-size: 11.5px; opacity: .8; margin-bottom: 6px; }
+  .chWire b { font: 11.5px ui-monospace, Consolas, monospace; opacity: 1; }
+  #chDetailBody .chQuote { margin-top: 10px; padding: 8px 10px; border-radius: 9px;
+                           background: rgba(255,255,255,.06); font-size: 12.5px; line-height: 1.5;
+                           max-height: 140px; overflow: auto; word-break: break-word; }
+  .chMsg { cursor: pointer; }
+  .chMsg.picked { outline: 2px solid rgba(126,170,255,.7); outline-offset: 2px; }
+  @media (max-width: 900px) { #chDetail { display: none; } }
   #chSide { flex: 0 0 auto; width: 186px; overflow-y: auto; padding: 12px 13px;
             border-left: 1px solid rgba(128,128,128,.28); }
   #chSide h4 { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; opacity: .5;
@@ -1539,11 +1572,11 @@
   .chStat b { font: 11.5px ui-monospace, Consolas, monospace; text-align: right;
               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 108px; }
   .chStat b.live { color: #7ef0b0; }
-  .chMsg { max-width: 76%; padding: 9px 13px; border-radius: 14px; font-size: 15px; line-height: 1.5;
+  .chMsg { max-width: 76%; padding: 9px 13px; border-radius: 14px; font-size: 14px; line-height: 1.5;
            word-break: break-word; }
   .chMsg.them { align-self: flex-start; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); }
   .chMsg.me { align-self: flex-end; background: linear-gradient(180deg, rgba(126,170,255,.92), rgba(86,128,240,.92)); color: #071024; }
-  .chMsg .chFrom { display: block; font-size: 11px; font-weight: bold; opacity: .8; margin-bottom: 3px; }
+  .chMsg .chFrom { font-weight: bold; opacity: .92; }
   .chMsg .chTime { display: block; font-size: 10.5px; opacity: .6; margin-top: 5px;
                    font-family: ui-monospace, Consolas, monospace; }
   .chMsg b, .chMsg strong { font-weight: bold; }
@@ -1558,7 +1591,7 @@
   #chFmt select { font-size: 12px; }
   #chFmt input[type=color] { width: 30px; height: 24px; padding: 0; }
   #chBar { flex: 0 0 auto; display: flex; gap: 7px; padding: 9px 12px; border-top: 1px solid rgba(128,128,128,.28); }
-  #chIn { flex: 1; min-width: 0; font-size: 15px; }
+  #chIn { flex: 1; min-width: 0; font-size: 14px; }
   #chWho { font-size: 11.5px; opacity: .75; }
   #chWho.live { color: #7ef0b0; }
   @media (max-width: 700px) { #chSide { display: none; } }
@@ -1799,6 +1832,24 @@
   <div class="body" id="chBody">
     <div id="chMain">
       <div id="chLog"></div>
+      <div id="chDetail">
+        <h4>Traffic</h4>
+        <div class="chWire">
+          <i class="llDot" id="chTx"></i><span>out</span><b id="chOut">0</b>
+          <i class="llDot rx" id="chRx"></i><span>in</span><b id="chInN">0</b>
+        </div>
+        <div class="chK"><span>on the link</span><b id="chLinkB">0 B</b></div>
+        <div class="chK"><span>state</span><b id="chIce">—</b></div>
+        <div class="chK"><span>route</span><b>direct, peer to peer</b></div>
+        <div class="chK"><span>through</span><b>nobody</b></div>
+        <h4>Sealed with</h4>
+        <div class="chK"><span>channel</span><b>DTLS</b></div>
+        <div class="chK"><span>messages</span><b>ECDH P-256</b></div>
+        <div class="chK"><span>cipher</span><b>AES-GCM 256</b></div>
+        <div class="chK"><span>signed</span><b>ECDSA P-256</b></div>
+        <h4>Message</h4>
+        <div id="chDetailBody" class="chEmpty">Click any message to inspect it.</div>
+      </div>
       <div id="chSide">
         <h4>This conversation</h4>
         <div class="chStat"><span>Messages</span><b id="chsN">0</b></div>
@@ -6336,6 +6387,47 @@ var Sys = (function () {
       }).join('\n') || '(bin is empty)'; } },
     { key: 'ws.marks', name: 'Bookmarks', app: 'marks', count: function (v) { return (v || []).length; },
       text: function (v) { return (v || []).map(function (m) { return (m.t || '(unnamed)') + '\n  ' + m.u; }).join('\n') || '(no bookmarks)'; } },
+    { key: 'ws.post', name: 'Post', app: 'post',
+      count: function (v) { return ((v && v.inbox) || []).length + ((v && v.outbox) || []).length; },
+      text: function (v) {
+        if (!v) return '(nothing yet)';
+        var lines = [];
+        lines.push('Your address');
+        lines.push('  ' + (v.me ? 'WS1 keypair held on this machine' : 'not yet generated'));
+        lines.push('');
+        lines.push('Contacts  ' + ((v.who || []).length));
+        (v.who || []).forEach(function (w) {
+          lines.push('  ' + w.name + (w.code ? '  (link remembered)' : ''));
+        });
+        lines.push('');
+        lines.push('Inbox  ' + ((v.inbox || []).length) + '   Outbox  ' + ((v.outbox || []).length));
+        (v.inbox || []).slice(-8).forEach(function (m) {
+          lines.push('  in   ' + (m.s || '(no subject)'));
+        });
+        (v.outbox || []).slice(-8).forEach(function (m) {
+          lines.push('  out  ' + (m.s || '(no subject)') + (m.delivered ? '  delivered' : '  waiting'));
+        });
+        if (v.link) {
+          lines.push('');
+          lines.push('Live link');
+          lines.push('  sent ' + (v.link.sent || 0) + ' · received ' + (v.link.recv || 0) +
+                     ' · ' + (v.link.bytes || 0) + ' bytes carried');
+          lines.push('  ' + ((v.link.hist || []).length) + ' entries in the history');
+        }
+        return lines.join('\n');
+      } },
+    { key: 'ws.chat', name: 'Chat', app: 'chat',
+      count: function (v) { return (v || []).length; },
+      text: function (v) {
+        v = v || [];
+        if (!v.length) return '(nothing said yet)';
+        var me = v.filter(function (m) { return m.me; }).length;
+        var out = ['Messages  ' + v.length + '   you ' + me + '   them ' + (v.length - me), ''];
+        v.slice(-12).forEach(function (m) {
+          out.push((m.me ? '> ' : '< ') + String(m.t).replace(/\s+/g, ' ').slice(0, 60));
+        });
+        return out.join('\n');
+      } },
     { key: 'ws.wear', name: 'Button wear', app: 'web',
       count: function (v) { return Object.keys(v || {}).length; },
       text: function (v) {
@@ -12433,7 +12525,8 @@ var soundEditorAPI = {};
     }
     st.link.hist.push(item);
     if (st.link.hist.length > 300) st.link.hist = st.link.hist.slice(-300);
-    if (dir === 'sent') { st.link.sent++; flash('tx'); } else { st.link.recv++; flash('rx'); }
+    if (dir === 'sent') { st.link.sent++; flash('tx'); } else if (dir === 'recv') { st.link.recv++; flash('rx'); }
+    if (Sys.link && Sys.link.onWire && dir !== 'note') Sys.link.onWire(dir === 'sent' ? 'out' : 'in');
     st.link.bytes += n;
     if (!st.link.since) st.link.since = Date.now();
     save();
@@ -12565,8 +12658,9 @@ var soundEditorAPI = {};
       if (d.indexOf('WSCHAT1|') === 0) {
         var t = d.slice(8), shown = t;
         try { shown = JSON.parse(t).t; } catch (x) {}
+        st.link.bytes += blen(t);
         record('recv', 'Chat', String(shown).slice(0, 60), null);
-        st.link.bytes += blen(t); save(); meter();
+        save(); meter();
         if (Sys.chatIn) Sys.chatIn(t);
         return;
       }
@@ -12679,13 +12773,18 @@ var soundEditorAPI = {};
         chan.send('WSCHAT1|' + text);
         var shown = text;
         try { shown = JSON.parse(text).t; } catch (x) {}
+        st.link.bytes += blen(text);
         record('sent', 'Chat', String(shown).slice(0, 60), null);
-        st.link.bytes += blen(text); save(); meter();
+        save(); meter();
         return true;
       } catch (e) { return false; }
     },
     open: function () { return !!(chan && chan.readyState === 'open'); },
-    onState: []
+    onState: [],
+    onWire: null,
+    stats: function () {
+      return { bytes: human(st.link.bytes), state: pc ? pc.iceConnectionState : 'closed' };
+    }
   };
   function drain() {
     if (!chan || chan.readyState !== 'open') return;
@@ -12776,23 +12875,45 @@ var soundEditorAPI = {};
       if (m.size) d.style.fontSize = m.size + 'px';
       if (m.color && !m.me) d.style.color = m.color;
 
-      var who = document.createElement('span');
-      who.className = 'chFrom';
-      who.textContent = m.me ? myName() : (m.who || theirName());
-      d.appendChild(who);
-
       var body = document.createElement('span');
-      body.innerHTML = marks(m.t);
+      body.innerHTML = '<b class="chFrom">' + esc(m.me ? myName() : (m.who || theirName())) + ':</b> ' + marks(m.t);
       d.appendChild(body);
 
       var s = document.createElement('span');
       s.className = 'chTime';
-      s.textContent = stamp(m.at) + '  ·  ' + bytes(m.b || size(m.t));
+      s.textContent = 'Sent ' + stamp(m.at) + '  ·  ' + bytes(m.b || size(m.t)) +
+                      '  ·  ' + String(m.t).length + ' chars  ·  ' +
+                      (m.me ? 'sent over the live link' : 'received over the live link');
       d.appendChild(s);
+      d.onclick = function () {
+        box.querySelectorAll('.chMsg.picked').forEach(function (x) { x.classList.remove('picked'); });
+        d.classList.add('picked');
+        detail(m);
+      };
       box.appendChild(d);
     });
     box.scrollTop = box.scrollHeight;
     stats();
+  }
+
+  function detail(m) {
+    var b = $('chDetailBody');
+    b.classList.remove('chEmpty');
+    function row(k, v) { return '<div class="chK"><span>' + k + '</span><b>' + v + '</b></div>'; }
+    var words = String(m.t).trim().split(/\s+/).filter(Boolean).length;
+    b.innerHTML =
+      row('from', m.me ? myName() : (m.who || theirName())) +
+      row('direction', m.me ? 'sent' : 'received') +
+      row('date', stamp(m.at).slice(0, 10)) +
+      row('time', stamp(m.at).slice(11)) +
+      row('size', bytes(m.b || size(m.t))) +
+      row('characters', String(m.t).length) +
+      row('words', words) +
+      row('text size', (m.size || 15) + 'px') +
+      row('carried by', 'the live link') +
+      row('through', 'nobody') +
+      '<div class="chQuote"></div>';
+    b.querySelector('.chQuote').textContent = m.t;
   }
 
   function stats() {
@@ -12887,6 +13008,21 @@ var soundEditorAPI = {};
     store.set('ws.ui', u);
     draw();
   };
+
+  // Any traffic at all makes the lamp flash — chat, sealed messages, anything.
+  function wire(dir) {
+    var d = $(dir === 'out' ? 'chTx' : 'chRx');
+    if (!d) return;
+    d.classList.add('flash');
+    setTimeout(function () { d.classList.remove('flash'); }, 170);
+    var box = $(dir === 'out' ? 'chOut' : 'chInN');
+    box.textContent = (+box.textContent || 0) + 1;
+    if (Sys.link && Sys.link.stats) {
+      $('chLinkB').textContent = Sys.link.stats().bytes;
+      $('chIce').textContent = Sys.link.stats().state;
+    }
+  }
+  if (Sys.link) Sys.link.onWire = wire;
 
   if (Sys.link && Sys.link.onState) Sys.link.onState.push(state);
   state(Sys.link && Sys.link.open());
